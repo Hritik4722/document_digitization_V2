@@ -8,7 +8,7 @@ r2 = boto3.client(
     endpoint_url=os.getenv("R2_ENDPOINT"),
     aws_access_key_id= os.getenv("R2_ACCESS_KEY"),
     aws_secret_access_key= os.getenv("R2_SECRET_KEY"),
-    region= "auto"
+    region_name= "auto"
 )
 
 def upload_img(data: bytes, path : str, content_type: str = "image/jpeg") -> bool:

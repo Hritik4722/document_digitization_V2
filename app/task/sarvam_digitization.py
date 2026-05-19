@@ -1,8 +1,10 @@
-from config import client
+from app.config import client
+from app.task.celery_config import celery
 from app.services.storage import download_img_bytes, upload_img
 from io import BytesIO
 import os
 
+@celery.task()
 def process_img( key_path : str,lang:str , out_for: str, job_id :str) -> str:
     output_path = f"uploads/{job_id}/output.zip"
     try:
@@ -31,7 +33,7 @@ def process_img( key_path : str,lang:str , out_for: str, job_id :str) -> str:
     
     except Exception as e:
         print(e)
-        raise
+        
 
     finally:
         if os.path.exists(output_path):

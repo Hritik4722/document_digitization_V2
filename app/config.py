@@ -3,8 +3,10 @@ from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
+load_dotenv()
+
 client = SarvamAI(
-    api_subscription_key=os.getenv("API_KEY")
+    api_subscription_key=os.getenv("SARVAM_API_KEY")
 )
 
 openrouter_client = OpenAI(

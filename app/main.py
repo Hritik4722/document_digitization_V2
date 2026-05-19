@@ -1,9 +1,8 @@
 from fastapi import FastAPI
-from services.upload import router as upload_file
-
+from app.routes.upload import router as upload_img
 app = FastAPI()
 
-app.include_router(upload_file)
+app.include_router(upload_img)
 
 @app.get("/")
 def read_root():

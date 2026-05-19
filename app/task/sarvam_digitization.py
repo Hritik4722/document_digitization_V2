@@ -1,4 +1,5 @@
 from app.config import client
+from app.services.job import update_job
 from app.task.celery_config import celery
 from app.services.storage import download_img_bytes, upload_img
 from io import BytesIO
@@ -8,6 +9,7 @@ import os
 def process_img( key_path : str,lang:str , out_for: str, job_id :str) -> str:
     output_path = f"uploads/{job_id}/output.zip"
     try:
+        update_job(job_id,status="processing")
         #download image from r2
         image_bytes = download_img_bytes(key_path)
         if not image_bytes: 
@@ -29,7 +31,8 @@ def process_img( key_path : str,lang:str , out_for: str, job_id :str) -> str:
         with open(output_path,"rb") as f:
             upload_img(f.read(),output_path,"application/zip")
 
-        return output_path
+        update_job(job_id,status="completed", output_file= output_path)
+        return {"status": "completed", "output_key": output_path}
     
     except Exception as e:
         print(e)

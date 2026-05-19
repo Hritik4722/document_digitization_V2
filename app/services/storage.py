@@ -3,6 +3,7 @@ import os
 import boto3
 
 load_dotenv()
+
 r2 = boto3.client(
     "s3",
     endpoint_url=os.getenv("R2_ENDPOINT"),
@@ -34,3 +35,15 @@ def download_img_bytes(path :str) -> bytes:
         return data
     except Exception as e:
         return None
+
+def generate_down_url(key : str, expires : int = 3600) -> str:
+    url = r2.generate_presigned_url(
+        "get_object",
+        Params = {
+            "Bucket" : os.getenv("R2_BUCKET"),
+            "Key" : key
+        },
+        ExpiresIn = expires
+    )
+
+    return url

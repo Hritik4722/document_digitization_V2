@@ -1,0 +1,10 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+  worker:
+    build: .
+    command: celery -A app.task.celery_config.celery worker --loglevel=info
+  redis:
+    image: redis:alpine

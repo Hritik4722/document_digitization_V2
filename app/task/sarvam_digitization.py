@@ -2,10 +2,10 @@ from app.config import client
 from app.services.job import update_job
 from app.task.celery_config import celery
 from app.services.storage import download_img_bytes, upload_img
-from io import BytesIO
+# from io import BytesIO
 import os
 
-@celery.task()
+@celery.task
 def process_img( key_path : str,lang:str , out_for: str, job_id :str,filename :str) -> str:
     output_path = f"uploads/{job_id}/output.zip"
     extension = os.path.splitext(filename)[1]

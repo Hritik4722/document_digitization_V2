@@ -8,7 +8,8 @@ celery = Celery(
     "document_ai",
     broker=os.getenv("REDIS_URL"),
     backend=os.getenv("REDIS_URL"),
-    include=["app.task.sarvam_digitization"]
+    include=["app.task.sarvam_digitization","app.task.pdf_sarvam_call","app.task.sarvam_call",
+             "app.services.merge_chunks"]
 )
 
 celery.conf.update(

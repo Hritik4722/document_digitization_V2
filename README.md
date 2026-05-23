@@ -8,9 +8,9 @@
 
 This project is mainly about learning and applying worker-based background processing with Celery, Redis, and task queues.
 
-A document digitization API that accepts an image, extracts and digitizes its content using the Sarvam AI API, and returns a downloadable output — all processed asynchronously in the background.
+A document digitization API that accepts images and PDFs, extracts and digitizes their content using Sarvam AI, and returns a downloadable output — all processed asynchronously in the background.
 
-The core idea is simple: the API accepts an image, puts the work into a queue, and a worker processes it in the background. That keeps the upload fast and separates the heavy document processing from the main request.
+The core idea is simple: the API accepts a file, puts the work into a queue, and a worker processes it in the background. That keeps the upload fast and separates the heavy document processing from the main request.
 
 ## Main Concept
 
@@ -19,7 +19,7 @@ I used this project to understand how these parts work together:
 - FastAPI handles the upload request.
 - Redis stores the queue and job state.
 - Celery sends the work to a background worker.
-- The worker processes the image asynchronously.
+- The worker processes images directly, and PDFs through chunking plus cleanup.
 - The API later returns status and download links.
 
 
@@ -45,7 +45,7 @@ Celery Worker ◀──── download file ──── Cloudflare R2
  Sarvam API
 (Document Digitization)
      │
-     │ upload result
+  │ upload result
      ▼
 Cloudflare R2
      │
@@ -53,6 +53,8 @@ Cloudflare R2
      ▼
 GET /download/{job_id}
 ```
+
+PDF uploads follow the same storage flow, but the worker splits large PDFs into chunks, sends each chunk through Sarvam AI, then runs an OpenRouter cleanup pass before merging the final HTML output.
 
 ## Stack
 
@@ -68,19 +70,20 @@ GET /download/{job_id}
 ## How it works
 
 1. `POST /upload` accepts an image with `lang` and `output_format`
-2. The file is uploaded to Cloudflare R2
-3. A Celery task is pushed to the Redis-backed queue
-4. A background worker picks up the task — no waiting on the API side
-5. The worker sends the image to Sarvam AI for digitization
-6. The result is uploaded back to R2
-7. `GET /status/{job_id}` lets you poll for progress
-8. `GET /download/{job_id}` returns a temporary presigned URL when done
+2. `POST /upload-pdf` accepts a PDF with the same form fields
+3. The file is uploaded to Cloudflare R2
+4. A Celery task is pushed to the Redis-backed queue
+5. A background worker picks up the task — no waiting on the API side
+6. For images, the worker sends the file to Sarvam AI and uploads the ZIP output back to R2
+7. For PDFs, the worker splits the document into chunks, digitizes each chunk, cleans the HTML with OpenRouter, and merges the results
+8. `GET /status/{job_id}` lets you poll for progress
+9. `GET /download/{job_id}` returns a temporary presigned URL when done
 
 ## Setup
 
 **1. Install dependencies**
 ```bash
-pip install -r app/requirements.txt
+pip install -r requirements.txt
 ```
 
 **2. Create a `.env` file**
@@ -111,6 +114,8 @@ uvicorn app.main:app --reload
 celery -A app.task.celery_config.celery worker --loglevel=info
 ```
 
+If you want a single-process worker while debugging, add `--pool=solo`.
+
 API docs available at `http://localhost:8000/docs`
 
 ## API Reference
@@ -121,6 +126,25 @@ Upload an image for digitization.
 | Field | Type | Description |
 |---|---|---|
 | `file` | image file | The document image |
+| `lang` | string | Target language (e.g. `en-IN`, `hi-IN`) |
+| `output_format` | string | `html` or `md` |
+
+**Response**
+```json
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "queued"
+}
+```
+
+---
+
+### `POST /upload-pdf`
+Upload a PDF for digitization.
+
+| Field | Type | Description |
+|---|---|---|
+| `file` | PDF file | The document PDF |
 | `lang` | string | Target language (e.g. `en-IN`, `hi-IN`) |
 | `output_format` | string | `html` or `md` |
 
@@ -171,6 +195,12 @@ curl -X POST http://localhost:8000/upload \
   -F "lang=en-IN" \
   -F "output_format=html"
 
+# upload PDF
+curl -X POST http://localhost:8000/upload-pdf \
+  -F "file=@document.pdf" \
+  -F "lang=en-IN" \
+  -F "output_format=html"
+
 # check status
 curl http://localhost:8000/status/550e8400-e29b-41d4-a716-446655440000
 
@@ -185,3 +215,4 @@ curl http://localhost:8000/download/550e8400-e29b-41d4-a716-446655440000
 - How Cloudflare R2 works as S3-compatible object storage using `boto3`
 - How presigned URLs let users download files directly from storage
 - How to structure a FastAPI project with background processing
+- How PDF chunking, cleanup, and merge steps fit into a document pipeline

@@ -3,7 +3,8 @@ from app.services.job import update_job
 from app.task.celery_config import celery
 from app.task.sarvam_call import process_file
 from app.services.merge_chunks import merge_html
-from celery import chord
+from app.task.llm_cleanup import cleanit
+from celery import chord, chain
 from app.services.storage import download_img_bytes, upload_img
 from PyPDF2 import PdfReader,PdfWriter
 import os, math,shutil
@@ -48,8 +49,10 @@ def process_pdf( key_path : str,lang:str , out_for: str, job_id :str, filename :
             file_chunk_path.append(temp_path)
 
         chord(
-            process_file.s(job_id, chunk, lang, out_for, i)
-            for i, chunk in enumerate(file_chunk_path)
+            chain(
+                process_file.s(job_id, chunk, lang, out_for, i),
+                cleanit.s(i)
+            )for i, chunk in enumerate(file_chunk_path)
         )(
             merge_html.s(job_id)
         )

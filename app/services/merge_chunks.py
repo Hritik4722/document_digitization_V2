@@ -5,7 +5,7 @@ from app.services.job import update_job
 import zipfile, os, shutil
 
 @celery.task
-def merge_html(chunk_paths, job_id):
+def merge_html(dict_html, job_id):
     try:
         chunk_paths.sort(
             key=lambda x: int(

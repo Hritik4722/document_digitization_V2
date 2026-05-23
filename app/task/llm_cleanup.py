@@ -15,7 +15,7 @@ def cleanit(zip_file : str, chunk_id :int):
         with zipfile.ZipFile(zip_file, "r") as zipf:
             html_content = zipf.read("document.html").decode("utf-8")
             # print(content.decode("utf-8"))
-
+        print("---------------llm cleanup process")
         response = openrouter_client.chat.completions.create(
         model="deepseek/deepseek-chat-v3-0324",
         messages=[

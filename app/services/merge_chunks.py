@@ -5,30 +5,16 @@ from app.services.job import update_job
 import zipfile, os, shutil
 
 @celery.task
-def merge_html(dict_html, job_id):
+def merge_html(results, job_id):
     try:
-        chunk_paths.sort(
-            key=lambda x: int(
-                x.split("chunk_")[1]
-                .split(".")[0]
-            )
-        )
+        
         output_path = f"outputs/{job_id}/output.html"
         merged_body = ""
+        dict_html ={}
         styles = set()
-
-        for path in chunk_paths:
-
-            with zipfile.ZipFile(path) as z:
-
-                html_name = next(
-                    x for x in z.namelist()
-                    if x.endswith(".html")
-                )
-
-                html = z.read(
-                    html_name
-                ).decode("utf-8")
+        for d in results:
+            dict_html.update(d)
+        for key, html in sorted(dict_html.items()):
 
             soup = BeautifulSoup(
                 html,
@@ -77,14 +63,16 @@ def merge_html(dict_html, job_id):
             f.write(final_html)
 
         with open(output_path,"rb") as f:
-            upload_img(f.read(),f"uploads/{job_id}/output.html","text/html")
+            status = upload_img(f.read(),f"uploads/{job_id}/output.html","text/html")
 
+        if not status:
+            raise Exception("Upload failed")
 
         update_job(job_id,status="completed", output_file= f"uploads/{job_id}/output.html")
 
     except Exception as e:
         update_job(job_id, status="failed", error=str(e))
-        raise Exception("somethin went wrong")
+        raise Exception("something went wrong")
     
     finally:
         pdf_folder = f"pdf/{job_id}"
